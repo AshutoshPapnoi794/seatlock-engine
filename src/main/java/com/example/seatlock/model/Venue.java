@@ -1,10 +1,7 @@
 package com.example.seatlock.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +10,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "venues")
 public class Venue {
@@ -27,7 +25,7 @@ public class Venue {
     private String city;
 
     @Column(nullable = false)
-    private Integer TotalCapacity;
+    private Integer totalCapacity;
 
     @OneToMany(mappedBy = "venue", cascade = CascadeType.ALL,orphanRemoval = true)
     private List<ShowEvent> shows = new ArrayList<>();
