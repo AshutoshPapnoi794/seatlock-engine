@@ -9,7 +9,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "bookings")
+@Table(
+        name = "bookings",
+        indexes = {
+                @Index(name = "idx_booking_status_expires",
+                columnList = "status, expires_at")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,6 +32,9 @@ public class Booking {
 
     @Column(name = "user_email", nullable = false, length = 150)
     private String userEmail;
+
+    @Column(name = "show_id", nullable = false)
+    private Long showId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -48,6 +57,9 @@ public class Booking {
     )
     @Builder.Default
     private Set<Seat> seats = new HashSet<>();
+
+    @Version
+    private Long version;
 
     @PrePersist
     public void prePersist() {

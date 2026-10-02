@@ -31,7 +31,7 @@ public class SeatLockBookingService {
     private final ShowEventRepository showEventRepository;
 
     @Value("${booking.hold.minutes}")
-    private int HOLD_MINUTES;
+    private int holdMinutes;
 
     @Transactional
     public BookingResponse holdSeats(BookingRequest request){
@@ -48,9 +48,13 @@ public class SeatLockBookingService {
         }
 
         for (Seat seat: seats){
+            if(!seat.getShow().getId().equals(request.getShowId())){
+                throw new IllegalArgumentException(
+                        "Seat " + seat.getSeatNumber() + " does not belong to show " + request.getShowId());
+            }
             if (seat.getStatus()!= SeatStatus.AVAILABLE){
                 throw new SeatUnavailableException(
-                        "Seat " + seat.getSeatNumber() + " is already permanently booked!");
+                        "Seat " + seat.getSeatNumber() + " is not available!");
             }
         }
 
@@ -58,7 +62,7 @@ public class SeatLockBookingService {
                 request.getShowId(),
                 request.getSeatIds(),
                 request.getUserEmail(),
-                HOLD_MINUTES
+                holdMinutes
         );
 
         if(!locked){
@@ -79,10 +83,11 @@ public class SeatLockBookingService {
 
             Booking booking = Booking.builder()
                     .bookingReference(bookingRef)
+                    .showId(request.getShowId())
                     .userEmail(request.getUserEmail())
                     .status(BookingStatus.PENDING)
                     .totalAmount(totalAmount)
-                    .expiresAt(LocalDateTime.now().plusMinutes(HOLD_MINUTES))
+                    .expiresAt(LocalDateTime.now().plusMinutes(holdMinutes))
                     .seats(new HashSet<>(seats))
                     .build();
             booking = bookingRepository.save(booking);
@@ -103,11 +108,13 @@ public class SeatLockBookingService {
                 .orElseThrow(
                         ()->new ResourceNotFoundException("Booking reference not found: " + bookingReference)
                 );
+
         if (booking.getStatus() == BookingStatus.CONFIRMED) {
             throw new IllegalStateException("Booking is already confirmed!");
         }
 
-        if (booking.getStatus()==BookingStatus.EXPIRED || LocalDateTime.now().isAfter(booking.getExpiresAt())){
+        LocalDateTime graceExpiry = booking.getExpiresAt().plusSeconds(60);
+        if (booking.getStatus()==BookingStatus.EXPIRED || LocalDateTime.now().isAfter(graceExpiry)){
             booking.setStatus(BookingStatus.EXPIRED);
             bookingRepository.save(booking);
             throw new SeatUnavailableException(

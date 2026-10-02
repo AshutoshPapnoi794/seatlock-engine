@@ -1,6 +1,5 @@
 package com.example.seatlock.service;
 
-import com.example.seatlock.model.Seat;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -57,6 +56,11 @@ public class SeatHoldService {
 
         redisTemplate.delete(keys);
         log.info("Released {} holds from Redis for showId: {}", keys.size(), showId);
+    }
+
+    public boolean isHoldOwnedByOrExpired(Long showId, Long seatId, String userEmail){
+        String currentOwner = getHoldOwner(showId,seatId);
+        return currentOwner == null || userEmail.equals(currentOwner);
     }
 
     public String getHoldOwner(Long showId, Long seatId){
