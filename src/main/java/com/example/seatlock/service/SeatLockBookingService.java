@@ -29,6 +29,7 @@ public class SeatLockBookingService {
     private final SeatRepository seatRepository;
     private final BookingRepository bookingRepository;
     private final ShowEventRepository showEventRepository;
+    private final IdempotencyService idempotencyService;
 
     @Value("${booking.hold.minutes}")
     private int holdMinutes;
@@ -102,7 +103,15 @@ public class SeatLockBookingService {
     }
 
     @Transactional
-    public BookingResponse confirmPayment(String bookingReference){
+    public BookingResponse confirmPayment(String bookingReference, String idempotencyKey){
+        //cache hit
+        if(idempotencyKey!=null && !idempotencyKey.isBlank()){
+            BookingResponse cached = idempotencyService.getCachedResponse(idempotencyKey,BookingResponse.class);
+            if(cached!=null){
+                return cached;
+            }
+        }
+
         Booking booking = bookingRepository
                 .findByBookingReference(bookingReference)
                 .orElseThrow(
@@ -138,7 +147,12 @@ public class SeatLockBookingService {
 
         log.info("Payment SUCCESS: Booking [{}] permanently CONFIRMED!", bookingReference);
 
-        return mapToResponse(booking, show.getTitle(), seats);
+        BookingResponse response = mapToResponse(booking, show.getTitle(), seats);
+
+        if(idempotencyKey!=null && !idempotencyKey.isBlank()){
+            idempotencyService.saveResponse(idempotencyKey,response);
+        }
+        return response;
     }
 
     private BookingResponse mapToResponse(Booking booking, String showTitle, List<Seat> seats) {

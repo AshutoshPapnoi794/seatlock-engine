@@ -42,8 +42,9 @@ public class BookingController {
     }
 
     @PostMapping("/bookings/{bookingReference}/confirm")
-    public ResponseEntity<BookingResponse> confirmPayment(@PathVariable String bookingReference) {
-        BookingResponse response = seatLockBookingService.confirmPayment(bookingReference);
+    public ResponseEntity<BookingResponse> confirmPayment(@PathVariable String bookingReference,
+                                                          @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        BookingResponse response = seatLockBookingService.confirmPayment(bookingReference,idempotencyKey);
         return ResponseEntity.ok(response);
     }
 }
