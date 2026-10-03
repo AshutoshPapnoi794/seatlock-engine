@@ -46,13 +46,12 @@ public class RedisSeatLockConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        // Reset DB to clean state
         bookingRepository.deleteAll();
 
         ShowEvent show = showEventRepository.findAll().get(0);
         this.showId = show.getId();
 
-        // Target Seat A-4
+
         Seat targetSeat = seatRepository.findByShowIdAndSeatNumber(showId, "A-4")
                 .orElseThrow(() -> new IllegalStateException("Seat A-4 not found"));
 
@@ -60,7 +59,7 @@ public class RedisSeatLockConcurrencyTest {
         seatRepository.save(targetSeat);
         this.seatId = targetSeat.getId();
 
-        // Ensure Redis key is clean before test
+
         seatHoldService.releaseSeatHolds(showId, List.of(seatId));
     }
 
@@ -83,7 +82,7 @@ public class RedisSeatLockConcurrencyTest {
             executor.submit(() -> {
                 readyLatch.countDown();
                 try {
-                    startLatch.await(); // Wait for starter gun!
+                    startLatch.await();
 
                     BookingRequest request = BookingRequest.builder()
                             .showId(showId)
@@ -93,22 +92,20 @@ public class RedisSeatLockConcurrencyTest {
 
                     seatLockBookingService.holdSeats(request);
                     successfulHolds.incrementAndGet();
-                    System.out.println("🏁 [WINNER] Seat hold acquired by: " + userEmail);
+                    System.out.println("[WINNER] Seat hold acquired by: " + userEmail);
 
                 } catch (Exception e) {
                     rejectedUsers.incrementAndGet();
-                    // System.out.println("⛔ [REJECTED] " + userEmail);
                 } finally {
                     doneLatch.countDown();
                 }
             });
         }
 
-        // Wait until all 50 threads are queued at the starting line
         readyLatch.await();
-        System.out.println("\n🔥 50 THREADS READY. FIRING STARTER PISTOL! 🔥\n");
+        System.out.println("\n 50 THREADS READY. FIRING STARTER PISTOL! \n");
         long startTime = System.currentTimeMillis();
-        startLatch.countDown(); // BANG! All 50 threads attack simultaneously
+        startLatch.countDown();
 
         doneLatch.await();
         long duration = System.currentTimeMillis() - startTime;
@@ -124,10 +121,9 @@ public class RedisSeatLockConcurrencyTest {
         List<Booking> bookingsInDb = bookingRepository.findAll();
         System.out.println("Total PENDING bookings in DB: " + bookingsInDb.size());
 
-        // STRICT ASSERTIONS
         assertEquals(1, successfulHolds.get(), "EXACTLY 1 user must win the hold!");
         assertEquals(49, rejectedUsers.get(), "EXACTLY 49 users must be safely rejected!");
         assertEquals(1, bookingsInDb.size(), "Only 1 PENDING booking must exist in MySQL!");
-        assertEquals(BookingStatus.PENDING, bookingsInDb.get(0).getStatus());
+        assertEquals(BookingStatus.PENDING, bookingsInDb.getFirst().getStatus());
     }
 }
